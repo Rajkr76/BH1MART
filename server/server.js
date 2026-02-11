@@ -1,4 +1,13 @@
-require("dotenv").config({ path: require("path").resolve(__dirname, "../.env") });
+const fs = require("fs");
+const path = require("path");
+
+// Load .env from current directory (deployment) or parent directory (local dev)
+const envPath = fs.existsSync(path.resolve(__dirname, ".env"))
+  ? path.resolve(__dirname, ".env")
+  : path.resolve(__dirname, "../.env");
+
+require("dotenv").config({ path: envPath });
+
 const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");

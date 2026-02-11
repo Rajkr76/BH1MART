@@ -28,6 +28,10 @@ export default function OrderModal({ onClose }) {
   });
 
   const handleChange = (e) => {
+    const phoneRegex = /^\d{0,10}$/; // Allow only digits, max length 10
+    if (e.target.name === "phone" && e.target.value !== "" && !phoneRegex.test(e.target.value)) {
+      return alert("Please enter only numbers and upto 10 characters for the phone field."); 
+    }
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
@@ -143,9 +147,9 @@ export default function OrderModal({ onClose }) {
                     onChange={handleChange}
                     className="w-full rounded-lg border-2 border-amber-900 bg-amber-100 px-3 py-2 text-amber-900 font-bold focus:outline-none focus:ring-2 focus:ring-orange-500"
                   >
-                    <option>Phase 1</option>
-                    <option>Phase 2</option>
-                    <option>Phase 3</option>
+                    <option>Phase A</option>
+                    <option>Phase B</option>
+                    
                   </select>
                 </div>
                 <div>
@@ -158,7 +162,7 @@ export default function OrderModal({ onClose }) {
                     onChange={handleChange}
                     className="w-full rounded-lg border-2 border-amber-900 bg-amber-100 px-3 py-2 text-amber-900 font-bold focus:outline-none focus:ring-2 focus:ring-orange-500"
                   >
-                    {[1, 2, 3, 4, 5, 6].map((n) => (
+                    {[1, 5, 6].map((n) => (
                       <option key={n}>Boys Block {n}</option>
                     ))}
                   </select>

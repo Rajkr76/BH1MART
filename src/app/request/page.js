@@ -112,7 +112,7 @@ export default function RequestPage() {
                 value={form.foodItem}
                 onChange={handleChange}
                 required
-                placeholder="e.g., Cheese Burger, Iced Tea, Pasta..."
+                placeholder="e.g.,  Pasta..."
                 className="w-full rounded-lg border-2 border-amber-900 bg-amber-100 px-3 py-2 text-amber-900 font-bold focus:outline-none focus:ring-2 focus:ring-orange-500"
               />
             </div>

@@ -1,5 +1,6 @@
 import "./globals.css";
 import { CartProvider } from "@/context/CartContext";
+import { LoadingProvider } from "@/components/LoadingBar";
 import Navbar from "@/components/Navbar";
 
 export const metadata = {
@@ -11,10 +12,12 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body className="antialiased min-h-screen bg-linear-to-br from-orange-200 via-amber-100 to-orange-300">
-        <CartProvider>
-          <Navbar />
-          <main className="pb-12">{children}</main>
-        </CartProvider>
+        <LoadingProvider>
+          <CartProvider>
+            <Navbar />
+            <main className="pb-12">{children}</main>
+          </CartProvider>
+        </LoadingProvider>
       </body>
     </html>
   );
