@@ -24,9 +24,9 @@ const io = new Server(server, {
   cors: { origin: "*", methods: ["GET", "POST"] },
 });
 
-const ADMIN_NAME = process.env.ADMIN_NAME || "raj123";
-const ADMIN_CHAT_ID = process.env.ADMIN_CHAT_ID || "CHAT-GIRI04";
-const JWT_SECRET = process.env.JWT_SECRET || "b1mart_fallback_secret";
+const ADMIN_NAME = process.env.ADMIN_NAME ;
+const ADMIN_CHAT_ID = process.env.ADMIN_CHAT_ID ;
+const JWT_SECRET = process.env.JWT_SECRET ;
 
 // In-memory active users per room (messages now in MongoDB)
 const chatRooms = {}; // { chatId: { users: [] } }
@@ -338,7 +338,7 @@ io.on("connection", (socket) => {
   });
 });
 
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT ;
 server.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
 });
