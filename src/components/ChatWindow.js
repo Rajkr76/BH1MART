@@ -4,27 +4,19 @@ import { io } from "socket.io-client";
 
 const SOCKET_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
-// Notification sound using Web Audio API
+// Notification sound using audio file
 function playSound(type) {
   try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain);
-    gain.connect(ctx.destination);
+    const audio = new Audio("/notification.mp3");
+    // Adjust volume based on type
     if (type === "send") {
-      osc.frequency.value = 600;
-      gain.gain.value = 0.08;
+      audio.volume = 0.4;
     } else if (type === "receive") {
-      osc.frequency.value = 800;
-      gain.gain.value = 0.12;
+      audio.volume = 0.6;
     } else {
-      osc.frequency.value = 500;
-      gain.gain.value = 0.06;
+      audio.volume = 0.3;
     }
-    osc.type = "sine";
-    osc.start();
-    osc.stop(ctx.currentTime + 0.12);
+    audio.play().catch(() => {}); // Ignore autoplay errors
   } catch {}
 }
 
