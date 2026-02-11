@@ -21,7 +21,7 @@ const FoodRequest = require("./models/FoodRequest");
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
-  cors: { origin: "*", methods: ["GET", "POST"] },
+  cors: { origin: "https://bh-1-mart.vercel.app", methods: ["GET", "POST"], credentials: true },
 });
 
 const ADMIN_NAME = process.env.ADMIN_NAME ;
@@ -33,9 +33,10 @@ const chatRooms = {}; // { chatId: { users: [] } }
 
 // CORS — allow frontend (Next.js) to call API
 app.use((req, res, next) => {
-  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Origin", "https://bh-1-mart.vercel.app");
   res.header("Access-Control-Allow-Methods", "GET, POST, PATCH, PUT, DELETE, OPTIONS");
   res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  res.header("Access-Control-Allow-Credentials", "true");
   if (req.method === "OPTIONS") return res.sendStatus(204);
   next();
 });
