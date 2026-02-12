@@ -272,7 +272,7 @@ export default function AdminPage() {
         >
           ← BACK TO PANEL
         </button>
-        <ChatWindow chatId={chatId} role="admin" senderName={adminInfo?.name || "raj123"} />
+        <ChatWindow chatId={chatId} role="admin" senderName={adminInfo?.name || "bhaskar"} />
       </div>
     );
   }
@@ -302,7 +302,7 @@ export default function AdminPage() {
               Quick Chat Join
             </h2>
             <span className="text-xs font-bold bg-amber-200 text-amber-900 px-3 py-1 rounded-full border border-amber-900/30">
-              {adminInfo?.name || "raj123"} | {adminInfo?.chatId || "CHAT-GIRI04"}
+              {adminInfo?.name || "bhaskar"} | {adminInfo?.chatId || "CHAT-GIRI04"}
             </span>
           </div>
           <div className="flex gap-3">

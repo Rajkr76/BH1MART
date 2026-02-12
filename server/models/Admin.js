@@ -4,7 +4,7 @@ const bcrypt = require("bcryptjs");
 const adminSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true, lowercase: true },
   password: { type: String, required: true },
-  name: { type: String, default: "raj123" },
+  name: { type: String, default: "bhaskar" },
   chatId: { type: String, default: "CHAT-GIRI04" },
   createdAt: { type: Date, default: Date.now },
 });
