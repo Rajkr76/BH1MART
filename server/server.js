@@ -17,6 +17,7 @@ const Order = require("./models/Order");
 const Admin = require("./models/Admin");
 const Message = require("./models/Message");
 const FoodRequest = require("./models/FoodRequest");
+const Product = require("./models/Product");
 
 const app = express();
 const server = http.createServer(app);
@@ -235,6 +236,59 @@ app.patch("/api/food-request/:id/status", requireAdmin, async (req, res) => {
     ).lean();
     if (request) res.json(request);
     else res.status(404).json({ error: "Request not found" });
+  } catch (err) {
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// ─── Product Routes ───
+
+// Get all products (public)
+app.get("/api/products", async (req, res) => {
+  try {
+    const products = await Product.find().sort({ priority: 1, createdAt: -1 }).lean();
+    res.json(products);
+  } catch (err) {
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// Add new product (admin only)
+app.post("/api/products", requireAdmin, async (req, res) => {
+  try {
+    const { name, price, image, category, inStock, priority } = req.body;
+    if (!name || !price || !image) {
+      return res.status(400).json({ error: "Name, price, and image are required" });
+    }
+    const product = await Product.create({ name, price, image, category, inStock, priority });
+    res.json({ success: true, product });
+  } catch (err) {
+    console.error("Create product error:", err);
+    res.status(500).json({ error: "Failed to create product" });
+  }
+});
+
+// Update product (admin only)
+app.patch("/api/products/:id", requireAdmin, async (req, res) => {
+  try {
+    const product = await Product.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { new: true, runValidators: true }
+    ).lean();
+    if (product) res.json(product);
+    else res.status(404).json({ error: "Product not found" });
+  } catch (err) {
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// Delete product (admin only)
+app.delete("/api/products/:id", requireAdmin, async (req, res) => {
+  try {
+    const product = await Product.findByIdAndDelete(req.params.id);
+    if (product) res.json({ success: true, message: "Product deleted" });
+    else res.status(404).json({ error: "Product not found" });
   } catch (err) {
     res.status(500).json({ error: "Server error" });
   }

@@ -37,7 +37,9 @@ export default function ProductCard({ product }) {
         <h3 className="text-lg font-black uppercase tracking-wide text-amber-900 leading-tight">
           {product.name}
         </h3>
-        <p className="text-sm text-amber-700 mt-1">{product.tagline}</p>
+        {product.category && (
+          <p className="text-sm text-amber-700 mt-1">{product.category}</p>
+        )}
         <p className="text-2xl font-black text-orange-600 mt-2">
           ₹{product.price}
         </p>

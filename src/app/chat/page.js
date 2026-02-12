@@ -4,7 +4,7 @@ import { useSearchParams } from "next/navigation";
 import ChatWindow from "@/components/ChatWindow";
 import { Suspense } from "react";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+const API_URL = process.env.NEXT_PUBLIC_API_URL ;
 
 function ChatContent() {
   const searchParams = useSearchParams();

@@ -1,8 +1,9 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import { io } from "socket.io-client";
+import { notifyNewMessage, requestNotificationPermission } from "@/utils/notifications";
 
-const SOCKET_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+const SOCKET_URL = process.env.NEXT_PUBLIC_API_URL;
 
 // Notification sound using audio file
 function playSound(type) {
@@ -10,11 +11,11 @@ function playSound(type) {
     const audio = new Audio("/notification.mp3");
     // Adjust volume based on type
     if (type === "send") {
-      audio.volume = 0.4;
+      audio.volume = 0.6;
     } else if (type === "receive") {
       audio.volume = 0.6;
     } else {
-      audio.volume = 0.3;
+      audio.volume = 0.4;
     }
     audio.play().catch(() => {}); // Ignore autoplay errors
   } catch {}
@@ -33,6 +34,9 @@ export default function ChatWindow({ chatId, role = "customer", senderName = "Cu
 
   useEffect(() => {
     if (!chatId) return;
+
+    // Request notification permission
+    requestNotificationPermission();
 
     const s = io(SOCKET_URL);
     setSocket(s);
@@ -54,6 +58,10 @@ export default function ChatWindow({ chatId, role = "customer", senderName = "Cu
       // Play sound — different tone for own vs others
       if (msg.role !== role) {
         playSound("receive");
+        // Show browser notification for messages from others
+        if (document.hidden) {
+          notifyNewMessage(msg.sender, msg.message, msg.role);
+        }
       }
     });
 

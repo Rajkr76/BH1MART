@@ -1,0 +1,44 @@
+{
+  "name": "Bhaskar B1 MART",
+  "short_name": "B1 MART",
+  "description": "Hostel Convenience Store - Order snacks and essentials from your room",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#fef3c7",
+  "theme_color": "#78350f",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icon-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ],
+  "categories": ["shopping", "food"],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "Cart",
+      "url": "/cart",
+      "description": "View your cart"
+    },
+    {
+      "name": "Chat",
+      "url": "/chat",
+      "description": "Chat with support"
+    }
+  ]
+}

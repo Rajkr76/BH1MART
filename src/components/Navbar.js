@@ -23,7 +23,7 @@ export default function Navbar() {
           <span className="h-3 w-3 rounded-full bg-yellow-400" />
           <span className="h-3 w-3 rounded-full bg-green-400" />
           <span className="ml-3 text-xs font-bold uppercase tracking-widest text-amber-100">
-            B1 MART
+            Bhaskar B1 MART
           </span>
         </div>
 
@@ -33,7 +33,7 @@ export default function Navbar() {
             href="/"
             className="text-2xl font-black uppercase tracking-wider text-amber-900"
           >
-            B1MART
+            B1 MART
           </Link>
 
           {/* Desktop links */}

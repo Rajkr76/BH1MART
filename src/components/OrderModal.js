@@ -1,8 +1,9 @@
 "use client";
 import { useState } from "react";
 import { useCart } from "@/context/CartContext";
+import { notifyNewOrder } from "@/utils/notifications";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 function generateChatId() {
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
@@ -23,14 +24,14 @@ export default function OrderModal({ onClose }) {
     name: "",
     phone: "",
     room: "",
-    phase: "Phase 1",
+    phase: "Phase A",
     block: "Boys Block 1",
   });
 
   const handleChange = (e) => {
     const phoneRegex = /^\d{0,10}$/; // Allow only digits, max length 10
     if (e.target.name === "phone" && e.target.value !== "" && !phoneRegex.test(e.target.value)) {
-      return alert("Please enter only numbers and upto 10 characters for the phone field."); 
+      return alert("Please enter only numbers and upto 10 characters for the phone field.");
     }
     setForm({ ...form, [e.target.name]: e.target.value });
   };
@@ -72,6 +73,9 @@ export default function OrderModal({ onClose }) {
     setOrderData(order);
     setStep("confirmation");
     clearCart();
+    
+    // Send browser notification (for admin monitoring)
+    notifyNewOrder(chatId, form.name, total);
   };
 
   return (
@@ -149,7 +153,7 @@ export default function OrderModal({ onClose }) {
                   >
                     <option>Phase A</option>
                     <option>Phase B</option>
-                    
+
                   </select>
                 </div>
                 <div>
@@ -212,18 +216,31 @@ export default function OrderModal({ onClose }) {
               <p className="text-sm text-amber-700 font-bold">
                 Your order will arrive in a few minutes.
                 <br />
+                <span className="font-bold text-amber-800">Copy the chat ID as it is generated one time.</span>
                 Please stay in your room.
               </p>
 
               <div className="rounded-lg border-2 border-amber-900/30 bg-amber-100 p-4 text-left space-y-2">
-                <div className="flex justify-between">
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
                   <span className="text-xs font-black uppercase text-amber-900">
                     Chat ID
                   </span>
-                  <span className="font-black text-orange-600">
-                    {orderData.chatId}
-                  </span>
+
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-black text-orange-600 break-all">
+                      {orderData.chatId}
+                    </span>
+
+                    <button
+                      onClick={() => navigator.clipboard.writeText(orderData.chatId)}
+                      className="text-xs px-3 py-1.5 bg-orange-500 text-white rounded-lg hover:bg-orange-600 font-black uppercase whitespace-nowrap"
+                      title="Copy Chat ID"
+                    >
+                      Copy
+                    </button>
+                  </div>
                 </div>
+
                 <div className="flex justify-between">
                   <span className="text-xs font-black uppercase text-amber-900">
                     Name

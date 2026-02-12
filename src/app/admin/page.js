@@ -1,8 +1,9 @@
 "use client";
 import { useState, useEffect } from "react";
 import ChatWindow from "@/components/ChatWindow";
+import ProductManagement from "@/components/ProductManagement";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 const STATUSES = ["pending", "preparing", "delivered", "cancelled"];
 const STATUS_COLORS = {
@@ -58,7 +59,7 @@ function AdminLogin({ onLogin }) {
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div className="text-center mb-2">
             <div className="text-4xl mb-2">🔐</div>
-            <h2 className="text-lg font-black uppercase text-amber-900">B1 MART Admin</h2>
+            <h2 className="text-lg font-black uppercase text-amber-900">Bhaskar B1 MART Admin</h2>
             <p className="text-xs text-amber-600 font-bold">Enter your credentials to continue</p>
           </div>
           <div>
@@ -323,7 +324,7 @@ export default function AdminPage() {
       </div>
 
       {/* Tab Buttons */}
-      <div className="flex gap-3">
+      <div className="flex gap-2">
         <button
           onClick={() => setTab("orders")}
           className={`flex-1 rounded-xl border-3 py-3 text-sm font-black uppercase tracking-wider transition-colors ${
@@ -343,6 +344,16 @@ export default function AdminPage() {
           }`}
         >
           🍜 REQUESTS ({requests.length})
+        </button>
+        <button
+          onClick={() => setTab("products")}
+          className={`flex-1 rounded-xl border-3 py-3 text-sm font-black uppercase tracking-wider transition-colors ${
+            tab === "products"
+              ? "border-amber-900 bg-orange-500 text-white shadow-[4px_4px_0px_#78350f]"
+              : "border-amber-900/30 bg-amber-100 text-amber-900 hover:bg-amber-200"
+          }`}
+        >
+          🛒 PRODUCTS
         </button>
       </div>
 
@@ -554,6 +565,23 @@ export default function AdminPage() {
                 ))}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Products Section */}
+      {tab === "products" && (
+        <div className="rounded-2xl border-4 border-amber-900 bg-amber-50 shadow-[6px_6px_0px_#78350f] overflow-hidden">
+          <div className="flex items-center gap-2 bg-amber-900 px-4 py-2">
+            <span className="h-3 w-3 rounded-full bg-red-400" />
+            <span className="h-3 w-3 rounded-full bg-yellow-400" />
+            <span className="h-3 w-3 rounded-full bg-green-400" />
+            <span className="ml-3 text-xs font-bold uppercase tracking-widest text-amber-100">
+              PRODUCT MANAGEMENT
+            </span>
+          </div>
+          <div className="p-6">
+            <ProductManagement token={getToken()} />
           </div>
         </div>
       )}
