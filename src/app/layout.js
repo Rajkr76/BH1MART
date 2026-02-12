@@ -3,7 +3,6 @@ import { CartProvider } from "@/context/CartContext";
 import { LoadingProvider } from "@/components/LoadingBar";
 import Navbar from "@/components/Navbar";
 import PWARegister from "@/components/PWARegister";
-import InstallButton from "@/components/InstallButton";
 
 export const metadata = {
   title: "Bhaskar B1 MART — Hostel Convenience Store",
@@ -38,7 +37,6 @@ export default function RootLayout({ children }) {
     <html lang="en">
       <body className="antialiased min-h-screen bg-linear-to-br from-orange-200 via-amber-100 to-orange-300">
         <PWARegister />
-        <InstallButton />
         <LoadingProvider>
           <CartProvider>
             <Navbar />
