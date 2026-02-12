@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { useCart } from "@/context/CartContext";
 import { useState, useEffect } from "react";
+import { usePathname } from "next/navigation";
 
 export default function Navbar() {
   const { itemCount } = useCart();
@@ -10,6 +11,8 @@ export default function Navbar() {
   const [showInstall, setShowInstall] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
   const [showIOSGuide, setShowIOSGuide] = useState(false);
+  const pathname = usePathname();
+  const isHomePage = pathname === "/";
 
   useEffect(() => {
     // Detect iOS
@@ -100,7 +103,7 @@ export default function Navbar() {
                 {link.label}
               </Link>
             ))}
-            {showInstall && (
+            {isHomePage && showInstall && (
               <button
                 onClick={handleInstall}
                 className="rounded-full w-10 h-10 border-2 border-amber-900 bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-[3px_3px_0px_#78350f] hover:shadow-[1px_1px_0px_#78350f] hover:translate-x-[2px] hover:translate-y-[2px] transition-all flex items-center justify-center"
@@ -135,7 +138,7 @@ export default function Navbar() {
                 {link.label}
               </Link>
             ))}
-            {showInstall && (
+            {isHomePage && showInstall && (
               <button
                 onClick={handleInstall}
                 className="text-sm font-extrabold uppercase tracking-wide text-orange-600 hover:text-orange-700 transition-colors text-left flex items-center gap-2"
