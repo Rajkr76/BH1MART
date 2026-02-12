@@ -166,7 +166,7 @@ export default function OrderModal({ onClose }) {
                     onChange={handleChange}
                     className="w-full rounded-lg border-2 border-amber-900 bg-amber-100 px-3 py-2 text-amber-900 font-bold focus:outline-none focus:ring-2 focus:ring-orange-500"
                   >
-                    {[1, 5, 6].map((n) => (
+                    {[1].map((n) => (
                       <option key={n}>Boys Block {n}</option>
                     ))}
                   </select>
