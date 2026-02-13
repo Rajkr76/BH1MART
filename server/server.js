@@ -152,8 +152,8 @@ app.post("/api/order", checkDeviceBlock, async (req, res) => {
     const validation = await validateOrder({ phone, name, room, fingerprint });
 
     if (!validation.isValid) {
-      // Record invalid attempt
-      if (fingerprint) {
+      // Only count HARD fraud signals toward device blocking (not format typos)
+      if (validation.severity === "hard" && fingerprint) {
         const device = await DeviceSecurity.findOneAndUpdate(
           { fingerprint },
           {
@@ -163,15 +163,15 @@ app.post("/api/order", checkDeviceBlock, async (req, res) => {
           { upsert: true, new: true }
         );
 
-        // Auto-block if 2+ invalid attempts
-        if (device.invalidAttempts >= 2 && !device.isBlocked) {
+        // Auto-block if 3+ hard invalid attempts
+        if (device.invalidAttempts >= 3 && !device.isBlocked) {
           device.isBlocked = true;
           device.blockedReason = "Repeated fake orders";
           await device.save();
         }
       }
 
-      // Log invalid attempt
+      // Log attempt
       await OrderLog.create({
         fingerprint: fingerprint || "unknown",
         phone,
@@ -180,7 +180,8 @@ app.post("/api/order", checkDeviceBlock, async (req, res) => {
         reason: validation.reason,
       });
 
-      return res.status(400).json({ error: "Invalid order details. Please check your information." });
+      // Return user-friendly message for soft errors so they can fix and retry
+      return res.status(400).json({ error: validation.reason });
     }
 
     // Valid order — create it
@@ -255,6 +256,55 @@ app.get("/api/verify-chat/:chatId", async (req, res) => {
     res.json({ valid: !!exists });
   } catch {
     res.json({ valid: false });
+  }
+});
+
+// ─── Device Security Routes (Admin) ───
+
+// Get all blocked devices
+app.get("/api/admin/blocked-devices", requireAdmin, async (req, res) => {
+  try {
+    const devices = await DeviceSecurity.find().sort({ updatedAt: -1 }).lean();
+    // Attach recent order logs for each device
+    const enriched = await Promise.all(
+      devices.map(async (d) => {
+        const logs = await OrderLog.find({ fingerprint: d.fingerprint })
+          .sort({ createdAt: -1 })
+          .limit(5)
+          .lean();
+        return { ...d, recentLogs: logs };
+      })
+    );
+    res.json(enriched);
+  } catch (err) {
+    console.error("Fetch blocked devices error:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// Unblock a device by fingerprint
+app.patch("/api/admin/unblock-device/:fingerprint", requireAdmin, async (req, res) => {
+  try {
+    const device = await DeviceSecurity.findOneAndUpdate(
+      { fingerprint: req.params.fingerprint },
+      { isBlocked: false, invalidAttempts: 0, blockedReason: "" },
+      { new: true }
+    ).lean();
+    if (device) res.json({ success: true, device });
+    else res.status(404).json({ error: "Device not found" });
+  } catch (err) {
+    console.error("Unblock device error:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// Get order logs (admin only)
+app.get("/api/admin/order-logs", requireAdmin, async (req, res) => {
+  try {
+    const logs = await OrderLog.find().sort({ createdAt: -1 }).limit(100).lean();
+    res.json(logs);
+  } catch (err) {
+    res.status(500).json({ error: "Server error" });
   }
 });
 

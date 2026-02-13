@@ -116,6 +116,7 @@ export default function AdminPage() {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [tab, setTab] = useState("orders");
   const [requests, setRequests] = useState([]);
+  const [blockedDevices, setBlockedDevices] = useState([]);
 
   const getToken = () => localStorage.getItem("b1mart_admin_token");
 
@@ -179,13 +180,38 @@ export default function AdminPage() {
     }
   };
 
+  // Fetch blocked devices with auth
+  const fetchBlockedDevices = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/admin/blocked-devices`, {
+        headers: { Authorization: `Bearer ${getToken()}` },
+      });
+      if (res.status === 401) { handleLogout(); return; }
+      const data = await res.json();
+      setBlockedDevices(data);
+    } catch {}
+  };
+
+  const unblockDevice = async (fingerprint) => {
+    if (!confirm("Are you sure you want to unblock this device?")) return;
+    try {
+      await fetch(`${API_URL}/api/admin/unblock-device/${fingerprint}`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${getToken()}` },
+      });
+      fetchBlockedDevices();
+    } catch {}
+  };
+
   useEffect(() => {
     if (!isAuth) return;
     fetchOrders();
     fetchRequests();
+    fetchBlockedDevices();
     const interval = setInterval(() => {
       fetchOrders();
       fetchRequests();
+      fetchBlockedDevices();
     }, 5000);
     return () => clearInterval(interval);
   }, [isAuth]);
@@ -354,6 +380,16 @@ export default function AdminPage() {
           }`}
         >
           🛒 PRODUCTS
+        </button>
+        <button
+          onClick={() => { setTab("security"); fetchBlockedDevices(); }}
+          className={`flex-1 rounded-xl border-3 py-3 text-sm font-black uppercase tracking-wider transition-colors ${
+            tab === "security"
+              ? "border-amber-900 bg-orange-500 text-white shadow-[4px_4px_0px_#78350f]"
+              : "border-amber-900/30 bg-amber-100 text-amber-900 hover:bg-amber-200"
+          }`}
+        >
+          🛡️ SECURITY ({blockedDevices.filter(d => d.isBlocked).length})
         </button>
       </div>
 
@@ -560,6 +596,100 @@ export default function AdminPage() {
                           </button>
                         ))}
                       </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Security / Blocked Devices Section */}
+      {tab === "security" && (
+        <div className="rounded-2xl border-4 border-amber-900 bg-amber-50 shadow-[6px_6px_0px_#78350f] overflow-hidden">
+          <div className="flex items-center gap-2 bg-amber-900 px-4 py-2">
+            <span className="h-3 w-3 rounded-full bg-red-400" />
+            <span className="h-3 w-3 rounded-full bg-yellow-400" />
+            <span className="h-3 w-3 rounded-full bg-green-400" />
+            <span className="ml-3 text-xs font-bold uppercase tracking-widest text-amber-100">
+              DEVICE SECURITY ({blockedDevices.length} tracked)
+            </span>
+          </div>
+          <div className="p-6">
+            {blockedDevices.length === 0 ? (
+              <p className="text-center text-amber-700 font-bold py-4">
+                No flagged devices yet.
+              </p>
+            ) : (
+              <div className="space-y-4">
+                {blockedDevices.map((device) => (
+                  <div key={device.fingerprint} className={`rounded-xl border-2 p-4 ${
+                    device.isBlocked
+                      ? "border-red-400 bg-red-50"
+                      : "border-amber-900/30 bg-amber-100"
+                  }`}>
+                    <div className="flex flex-wrap items-start gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap mb-1">
+                          <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${
+                            device.isBlocked
+                              ? "bg-red-400 text-red-900"
+                              : "bg-green-400 text-green-900"
+                          }`}>
+                            {device.isBlocked ? "BLOCKED" : "ACTIVE"}
+                          </span>
+                          <span className="text-[10px] font-bold text-amber-600">
+                            {device.invalidAttempts} invalid attempt{device.invalidAttempts !== 1 ? "s" : ""}
+                          </span>
+                        </div>
+                        <p className="text-xs font-mono font-bold text-amber-900 break-all">
+                          {device.fingerprint}
+                        </p>
+                        {device.blockedReason && (
+                          <p className="text-xs font-bold text-red-600 mt-1">
+                            Reason: {device.blockedReason}
+                          </p>
+                        )}
+                        <p className="text-[10px] font-bold text-amber-500 mt-1">
+                          Updated: {new Date(device.updatedAt).toLocaleString("en-IN", { dateStyle: "short", timeStyle: "short" })}
+                        </p>
+
+                        {/* Recent logs */}
+                        {device.recentLogs && device.recentLogs.length > 0 && (
+                          <div className="mt-2">
+                            <p className="text-[10px] font-black uppercase text-amber-600 mb-1">Recent Activity</p>
+                            <div className="rounded-lg border border-amber-900/20 bg-white/50 overflow-hidden">
+                              {device.recentLogs.map((log, i) => (
+                                <div key={log._id || i} className="flex items-center gap-2 px-2 py-1 text-[10px] font-bold even:bg-amber-50">
+                                  <span className={`px-1.5 py-0.5 rounded ${
+                                    log.status === "valid" ? "bg-green-200 text-green-800" :
+                                    log.status === "invalid" ? "bg-yellow-200 text-yellow-800" :
+                                    "bg-red-200 text-red-800"
+                                  }`}>
+                                    {log.status.toUpperCase()}
+                                  </span>
+                                  <span className="text-amber-700">{log.phone || "—"}</span>
+                                  <span className="text-amber-500">{log.ip || "—"}</span>
+                                  {log.reason && <span className="text-red-500 truncate">{log.reason}</span>}
+                                  <span className="ml-auto text-amber-400 whitespace-nowrap">
+                                    {new Date(log.createdAt).toLocaleString("en-IN", { dateStyle: "short", timeStyle: "short" })}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {device.isBlocked && (
+                        <button
+                          onClick={() => unblockDevice(device.fingerprint)}
+                          className="rounded-lg border-2 border-green-700 bg-green-500 px-4 py-2 text-[10px] font-black uppercase text-white hover:bg-green-600 transition-colors shrink-0"
+                        >
+                          UNBLOCK
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))}

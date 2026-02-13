@@ -34,6 +34,13 @@ export default function OrderModal({ onClose }) {
     if (e.target.name === "phone" && e.target.value !== "" && !phoneRegex.test(e.target.value)) {
       return alert("Please enter only numbers and upto 10 characters for the phone field.");
     }
+    // Room format: letter-dash-3digits (e.g. A-201)
+    if (e.target.name === "room") {
+      const roomRegex = /^[A-Za-z]?-?\d{0,3}$/;
+      if (e.target.value !== "" && !roomRegex.test(e.target.value)) {
+        return;
+      }
+    }
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
@@ -142,14 +149,17 @@ export default function OrderModal({ onClose }) {
 
               <div>
                 <label className="block text-xs font-black uppercase tracking-wide text-amber-900 mb-1">
-                  Room Number *
+                  Room Number * <span className="text-[10px] font-bold text-amber-600 normal-case">(e.g. A-201)</span>
                 </label>
                 <input
                   name="room"
                   value={form.room}
                   onChange={handleChange}
                   required
-                  className="w-full rounded-lg border-2 border-amber-900 bg-amber-100 px-3 py-2 text-amber-900 font-bold focus:outline-none focus:ring-2 focus:ring-orange-500"
+                  placeholder="A-201"
+                  pattern="[A-Za-z]-\d{3}"
+                  title="Format: letter-dash-3 digits (e.g. A-201, B-105)"
+                  className="w-full rounded-lg border-2 border-amber-900 bg-amber-100 px-3 py-2 text-amber-900 font-bold uppercase focus:outline-none focus:ring-2 focus:ring-orange-500"
                 />
               </div>
 

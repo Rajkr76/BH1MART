@@ -44,34 +44,39 @@ function isJunkText(text) {
  * @returns {Promise<{ isValid: boolean, reason: string }>}
  */
 async function validateOrder({ phone, name, room, fingerprint }) {
-  // 1. Phone validation
+  // --- SOFT errors: input format issues (user can fix, NOT fraud) ---
+
+  // 1. Phone format
   if (!INDIAN_MOBILE_REGEX.test(phone)) {
-    return { isValid: false, reason: "Invalid phone number format" };
+    return { isValid: false, severity: "soft", reason: "Please enter a valid 10-digit mobile number starting with 6-9." };
   }
 
-  // 2. Repeated digit phone
-  if (isRepeatedDigits(phone)) {
-    return { isValid: false, reason: "Phone number has all repeated digits" };
-  }
-
-  // 3. Name too short
+  // 2. Name too short
   if (!name || name.trim().length < 2) {
-    return { isValid: false, reason: "Name is too short" };
+    return { isValid: false, severity: "soft", reason: "Please enter your full name." };
   }
 
-  // 4. Name contains junk
+  // 3. Room format: must be letter-dash-3digits (e.g. A-201, B-105)
+  const ROOM_REGEX = /^[A-Za-z]-\d{3}$/;
+  if (!room || !ROOM_REGEX.test(room.trim())) {
+    return { isValid: false, severity: "soft", reason: "Room must be in format like A-201 (letter-dash-3 digits)." };
+  }
+
+  // --- HARD errors: clearly fake/junk data (counts toward fraud) ---
+
+  // 4. Repeated digit phone (e.g. 9999999999)
+  if (isRepeatedDigits(phone)) {
+    return { isValid: false, severity: "hard", reason: "Phone number has all repeated digits" };
+  }
+
+  // 5. Name contains junk
   if (isJunkText(name)) {
-    return { isValid: false, reason: "Name contains junk/test data" };
-  }
-
-  // 5. Room field too short
-  if (!room || room.trim().length < 1) {
-    return { isValid: false, reason: "Room number is required" };
+    return { isValid: false, severity: "hard", reason: "Name contains junk/test data" };
   }
 
   // 6. Room contains junk
   if (isJunkText(room)) {
-    return { isValid: false, reason: "Room contains junk/test data" };
+    return { isValid: false, severity: "hard", reason: "Room contains junk/test data" };
   }
 
   // 7. Check cancelled orders for this fingerprint
@@ -81,11 +86,11 @@ async function validateOrder({ phone, name, room, fingerprint }) {
       status: "cancelled",
     });
     if (cancelledCount > 2) {
-      return { isValid: false, reason: "Too many cancelled orders from this device" };
+      return { isValid: false, severity: "hard", reason: "Too many cancelled orders from this device" };
     }
   }
 
-  return { isValid: true, reason: "" };
+  return { isValid: true, severity: "none", reason: "" };
 }
 
 module.exports = { validateOrder };
