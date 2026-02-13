@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { useCart } from "@/context/CartContext";
 import { notifyNewOrder } from "@/utils/notifications";
+import getFingerprint from "@/utils/getFingerprint";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -40,6 +41,14 @@ export default function OrderModal({ onClose }) {
     e.preventDefault();
     const chatId = generateChatId();
 
+    // Generate device fingerprint
+    let fingerprint = "";
+    try {
+      fingerprint = await getFingerprint();
+    } catch (err) {
+      console.warn("Fingerprint generation failed:", err);
+    }
+
     const order = {
       chatId,
       ...form,
@@ -49,6 +58,7 @@ export default function OrderModal({ onClose }) {
         price: item.price,
       })),
       total,
+      fingerprint,
     };
 
     setSubmitting(true);
@@ -61,11 +71,14 @@ export default function OrderModal({ onClose }) {
       });
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
+        if (res.status === 403) {
+          throw new Error(errData.message || "Order access denied.");
+        }
         throw new Error(errData.error || "Server error");
       }
     } catch (err) {
       setSubmitting(false);
-      setSubmitError("Failed to place order: " + err.message + ". Make sure the server is running.");
+      setSubmitError(err.message);
       return;
     }
     setSubmitting(false);

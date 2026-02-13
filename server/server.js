@@ -18,6 +18,10 @@ const Admin = require("./models/Admin");
 const Message = require("./models/Message");
 const FoodRequest = require("./models/FoodRequest");
 const Product = require("./models/Product");
+const DeviceSecurity = require("./models/DeviceSecurity");
+const OrderLog = require("./models/OrderLog");
+const checkDeviceBlock = require("./middleware/checkDeviceBlock");
+const { validateOrder } = require("./utils/orderValidator");
 
 const app = express();
 const server = http.createServer(app);
@@ -131,12 +135,67 @@ app.get("/api/admin/verify", requireAdmin, (req, res) => {
 
 // ─── Order Routes ───
 
+// Helper: Extract real client IP (proxy-safe)
+function getClientIP(req) {
+  const forwarded = req.headers["x-forwarded-for"];
+  if (forwarded) return forwarded.split(",")[0].trim();
+  return req.socket.remoteAddress || "unknown";
+}
+
 // Create order (saves to MongoDB + creates chat room)
-app.post("/api/order", async (req, res) => {
+app.post("/api/order", checkDeviceBlock, async (req, res) => {
   try {
-    const { chatId, name, phone, room, phase, block, items, total } = req.body;
-    const order = await Order.create({ chatId, name, phone, room, phase, block, items, total });
+    const { chatId, name, phone, room, phase, block, items, total, fingerprint } = req.body;
+    const clientIP = getClientIP(req);
+
+    // Validate the order
+    const validation = await validateOrder({ phone, name, room, fingerprint });
+
+    if (!validation.isValid) {
+      // Record invalid attempt
+      if (fingerprint) {
+        const device = await DeviceSecurity.findOneAndUpdate(
+          { fingerprint },
+          {
+            $inc: { invalidAttempts: 1 },
+            $setOnInsert: { fingerprint },
+          },
+          { upsert: true, new: true }
+        );
+
+        // Auto-block if 2+ invalid attempts
+        if (device.invalidAttempts >= 2 && !device.isBlocked) {
+          device.isBlocked = true;
+          device.blockedReason = "Repeated fake orders";
+          await device.save();
+        }
+      }
+
+      // Log invalid attempt
+      await OrderLog.create({
+        fingerprint: fingerprint || "unknown",
+        phone,
+        ip: clientIP,
+        status: "invalid",
+        reason: validation.reason,
+      });
+
+      return res.status(400).json({ error: "Invalid order details. Please check your information." });
+    }
+
+    // Valid order — create it
+    const order = await Order.create({ chatId, name, phone, room, phase, block, items, total, fingerprint: fingerprint || "" });
     chatRooms[chatId] = { users: [] };
+
+    // Log valid order
+    await OrderLog.create({
+      fingerprint: fingerprint || "unknown",
+      phone,
+      ip: clientIP,
+      status: "valid",
+      reason: "",
+    });
+
     res.json({ success: true, chatId: order.chatId });
   } catch (err) {
     console.error("Create order error:", err);

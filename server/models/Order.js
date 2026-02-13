@@ -15,6 +15,7 @@ const orderSchema = new mongoose.Schema({
   block: { type: String, default: "Boys Block 1" },
   items: [orderItemSchema],
   total: { type: Number, required: true },
+  fingerprint: { type: String, index: true, default: "" },
   status: { type: String, enum: ["pending", "preparing", "delivered", "cancelled"], default: "pending" },
   createdAt: { type: Date, default: Date.now },
 });
