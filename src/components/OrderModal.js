@@ -3,6 +3,9 @@ import { useState } from "react";
 import { useCart } from "@/context/CartContext";
 import { notifyNewOrder } from "@/utils/notifications";
 import getFingerprint from "@/utils/getFingerprint";
+import { validatePhone, stripPhone } from "@/utils/validatePhone";
+import { validateName } from "@/utils/validateName";
+import { checkBulkItems, getBulkWhatsAppURL, MAX_QTY_PER_ITEM } from "@/helpers/handleBulkRedirect";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -30,9 +33,11 @@ export default function OrderModal({ onClose }) {
   });
 
   const handleChange = (e) => {
-    const phoneRegex = /^\d{0,10}$/; // Allow only digits, max length 10
-    if (e.target.name === "phone" && e.target.value !== "" && !phoneRegex.test(e.target.value)) {
-      return alert("Please enter only numbers and upto 10 characters for the phone field.");
+    // Phone: strip non-digits, max 10
+    if (e.target.name === "phone") {
+      const stripped = e.target.value.replace(/\D/g, "").slice(0, 10);
+      setForm({ ...form, phone: stripped });
+      return;
     }
     // Room format: letter-dash-3digits (e.g. A-201)
     if (e.target.name === "room") {
@@ -46,6 +51,35 @@ export default function OrderModal({ onClose }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setSubmitError("");
+
+    // --- Frontend validation ---
+
+    // Validate name
+    const nameResult = validateName(form.name);
+    if (!nameResult.valid) {
+      setSubmitError(nameResult.reason);
+      return;
+    }
+
+    // Validate phone
+    const phoneResult = validatePhone(form.phone);
+    if (!phoneResult.valid) {
+      setSubmitError(phoneResult.reason);
+      return;
+    }
+
+    // Check for bulk items (qty > 5) → redirect to WhatsApp
+    const { hasBulk, bulkItems } = checkBulkItems(cart);
+    if (hasBulk) {
+      const url = getBulkWhatsAppURL(bulkItems);
+      window.open(url, "_blank");
+      setSubmitError(
+        `Items with quantity > ${MAX_QTY_PER_ITEM} must be ordered via WhatsApp. Redirecting...`
+      );
+      return;
+    }
+
     const chatId = generateChatId();
 
     // Generate device fingerprint
@@ -59,6 +93,7 @@ export default function OrderModal({ onClose }) {
     const order = {
       chatId,
       ...form,
+      phone: phoneResult.phone, // Use stripped phone
       items: cart.map((item) => ({
         name: item.name,
         quantity: item.quantity,

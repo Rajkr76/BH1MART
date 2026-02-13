@@ -1,7 +1,6 @@
 const Order = require("../models/Order");
-
-// Indian mobile: starts with 6-9, exactly 10 digits
-const INDIAN_MOBILE_REGEX = /^[6-9]\d{9}$/;
+const { validatePhone, stripPhone } = require("./validatePhone");
+const { validateName } = require("./validateName");
 
 // Junk patterns for room/address fields
 const JUNK_PATTERNS = [
@@ -20,13 +19,6 @@ const JUNK_PATTERNS = [
 ];
 
 /**
- * Check if all digits in a phone number are the same (e.g. 9999999999)
- */
-function isRepeatedDigits(phone) {
-  return /^(\d)\1{9}$/.test(phone);
-}
-
-/**
  * Check if a string matches junk patterns
  */
 function isJunkText(text) {
@@ -36,50 +28,39 @@ function isJunkText(text) {
 
 /**
  * Validate an order for fake/invalid data.
+ * Uses shared phone and name validators from config.
  * @param {Object} params
  * @param {string} params.phone
  * @param {string} params.name
  * @param {string} params.room
  * @param {string} params.fingerprint
- * @returns {Promise<{ isValid: boolean, reason: string }>}
+ * @returns {Promise<{ isValid: boolean, reason: string, severity: string }>}
  */
 async function validateOrder({ phone, name, room, fingerprint }) {
-  // --- SOFT errors: input format issues (user can fix, NOT fraud) ---
-
-  // 1. Phone format
-  if (!INDIAN_MOBILE_REGEX.test(phone)) {
-    return { isValid: false, severity: "soft", reason: "Please enter a valid 10-digit mobile number starting with 6-9." };
+  // --- Phone validation (uses shared config + fake detection) ---
+  const phoneResult = validatePhone(phone);
+  if (!phoneResult.valid) {
+    return { isValid: false, severity: phoneResult.severity, reason: phoneResult.reason };
   }
 
-  // 2. Name too short
-  if (!name || name.trim().length < 2) {
-    return { isValid: false, severity: "soft", reason: "Please enter your full name." };
+  // --- Name validation (human name detection) ---
+  const nameResult = validateName(name);
+  if (!nameResult.valid) {
+    return { isValid: false, severity: nameResult.severity, reason: nameResult.reason };
   }
 
-  // 3. Room format: must be letter-dash-3digits (e.g. A-201, B-105)
+  // --- Room format: must be letter-dash-3digits (e.g. A-201, B-105) ---
   const ROOM_REGEX = /^[A-Za-z]-\d{3}$/;
   if (!room || !ROOM_REGEX.test(room.trim())) {
     return { isValid: false, severity: "soft", reason: "Room must be in format like A-201 (letter-dash-3 digits)." };
   }
 
-  // --- HARD errors: clearly fake/junk data (counts toward fraud) ---
-
-  // 4. Repeated digit phone (e.g. 9999999999)
-  if (isRepeatedDigits(phone)) {
-    return { isValid: false, severity: "hard", reason: "Phone number has all repeated digits" };
-  }
-
-  // 5. Name contains junk
-  if (isJunkText(name)) {
-    return { isValid: false, severity: "hard", reason: "Name contains junk/test data" };
-  }
-
-  // 6. Room contains junk
+  // --- Room contains junk ---
   if (isJunkText(room)) {
     return { isValid: false, severity: "hard", reason: "Room contains junk/test data" };
   }
 
-  // 7. Check cancelled orders for this fingerprint
+  // --- Check cancelled orders for this fingerprint ---
   if (fingerprint) {
     const cancelledCount = await Order.countDocuments({
       fingerprint,

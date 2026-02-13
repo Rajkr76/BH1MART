@@ -1,7 +1,11 @@
 "use client";
+import { useState, useEffect } from "react";
 import ProductCard from "@/components/ProductCard";
 
-const PRODUCTS = [
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
+// Fallback products if API is unavailable
+const FALLBACK_PRODUCTS = [
   { id: 1, name: "Maggi", category: "Noodles", price: 30, image: "/maggie.jpeg" },
   { id: 2, name: "Kurkure", category: "Snacks", price: 35, image: "/kurkure.jpeg" },
   { id: 3, name: "Maggi Cup Noodles", category: "Noodles", price: 85, image: "/Maggie cup noodles.jpeg" },
@@ -17,6 +21,29 @@ const PRODUCTS = [
 ];
 
 export default function HomePage() {
+  const [products, setProducts] = useState(FALLBACK_PRODUCTS);
+
+  useEffect(() => {
+    async function fetchProducts() {
+      try {
+        const res = await fetch(`${API_URL}/api/products`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.length > 0) {
+            // Map API products, using _id as id
+            setProducts(data.map((p) => ({ ...p, id: p._id || p.id })));
+          }
+        }
+      } catch {
+        // Use fallback products
+      }
+    }
+    fetchProducts();
+    // Poll for stock updates every 30 seconds
+    const interval = setInterval(fetchProducts, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
       {/* Hero */}
@@ -41,7 +68,7 @@ export default function HomePage() {
 
       {/* Products Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {PRODUCTS.map((product) => (
+        {products.map((product) => (
           <ProductCard key={product.id} product={product} />
         ))}
       </div>

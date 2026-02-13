@@ -22,6 +22,24 @@ const DeviceSecurity = require("./models/DeviceSecurity");
 const OrderLog = require("./models/OrderLog");
 const checkDeviceBlock = require("./middleware/checkDeviceBlock");
 const { validateOrder } = require("./utils/orderValidator");
+const { checkAbuseBlock, recordFailedAttempt, resetAttempts } = require("./middleware/abuseGuard");
+const rateLimit = require("express-rate-limit");
+
+// Rate limiter: 5 requests per 10 minutes per IP for POST /api/order
+const orderRateLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000, // 10 minutes
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => {
+    const forwarded = req.headers["x-forwarded-for"];
+    if (forwarded) return forwarded.split(",")[0].trim();
+    return req.socket.remoteAddress || "unknown";
+  },
+  handler: (req, res) => {
+    res.status(429).json({ error: "Too many order attempts. Please try again after 10 minutes." });
+  },
+});
 
 const app = express();
 const server = http.createServer(app);
@@ -143,10 +161,22 @@ function getClientIP(req) {
 }
 
 // Create order (saves to MongoDB + creates chat room)
-app.post("/api/order", checkDeviceBlock, async (req, res) => {
+app.post("/api/order", orderRateLimiter, checkDeviceBlock, checkAbuseBlock, async (req, res) => {
   try {
     const { chatId, name, phone, room, phase, block, items, total, fingerprint } = req.body;
     const clientIP = getClientIP(req);
+
+    // Backend quantity enforcement: max 5 per item
+    const MAX_QTY_PER_ITEM = 5;
+    if (items && Array.isArray(items)) {
+      const bulkItems = items.filter((item) => item.quantity > MAX_QTY_PER_ITEM);
+      if (bulkItems.length > 0) {
+        return res.status(400).json({
+          error: "Bulk orders are handled manually. Redirect to WhatsApp.",
+          bulkItems: bulkItems.map((i) => ({ name: i.name, quantity: i.quantity })),
+        });
+      }
+    }
 
     // Validate the order
     const validation = await validateOrder({ phone, name, room, fingerprint });
@@ -169,6 +199,9 @@ app.post("/api/order", checkDeviceBlock, async (req, res) => {
           device.blockedReason = "Repeated fake orders";
           await device.save();
         }
+
+        // Also record in Attempt collection (24h block after 2 failures)
+        await recordFailedAttempt(fingerprint);
       }
 
       // Log attempt
@@ -187,6 +220,11 @@ app.post("/api/order", checkDeviceBlock, async (req, res) => {
     // Valid order — create it
     const order = await Order.create({ chatId, name, phone, room, phase, block, items, total, fingerprint: fingerprint || "" });
     chatRooms[chatId] = { users: [] };
+
+    // Reset abuse attempts on successful order
+    if (fingerprint) {
+      await resetAttempts(fingerprint);
+    }
 
     // Log valid order
     await OrderLog.create({

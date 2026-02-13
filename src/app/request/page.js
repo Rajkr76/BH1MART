@@ -1,5 +1,7 @@
 "use client";
 import { useState } from "react";
+import { validatePhone } from "@/utils/validatePhone";
+import { validateName } from "@/utils/validateName";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
@@ -13,19 +15,41 @@ export default function RequestPage() {
   });
   const [submitting, setSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [formError, setFormError] = useState("");
 
   const handleChange = (e) => {
+    if (e.target.name === "phone") {
+      const stripped = e.target.value.replace(/\D/g, "").slice(0, 10);
+      setForm({ ...form, phone: stripped });
+      return;
+    }
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setFormError("");
+
+    // Validate name
+    const nameResult = validateName(form.name);
+    if (!nameResult.valid) {
+      setFormError(nameResult.reason);
+      return;
+    }
+
+    // Validate phone
+    const phoneResult = validatePhone(form.phone);
+    if (!phoneResult.valid) {
+      setFormError(phoneResult.reason);
+      return;
+    }
+
     setSubmitting(true);
     try {
       const res = await fetch(`${API_URL}/api/food-request`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify({ ...form, phone: phoneResult.phone }),
       });
       if (res.ok) {
         setShowSuccess(true);
@@ -130,6 +154,10 @@ export default function RequestPage() {
                 className="w-full rounded-lg border-2 border-amber-900 bg-amber-100 px-3 py-2 text-amber-900 font-bold focus:outline-none focus:ring-2 focus:ring-orange-500 resize-none"
               />
             </div>
+
+            {formError && (
+              <p className="text-xs font-bold text-red-600 bg-red-100 border border-red-300 rounded-lg p-2">{formError}</p>
+            )}
 
             <button
               type="submit"

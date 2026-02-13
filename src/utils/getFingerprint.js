@@ -1,9 +1,9 @@
 /**
  * Device Fingerprint Generator
- * Collects browser/device signals and generates a stable SHA-256 hash.
- * Does NOT use cookies, localStorage, or any persistent storage.
- * Runs entirely in-memory using Web Crypto API.
+ * Uses @fingerprintjs/fingerprintjs for stable visitorId.
+ * Falls back to custom SHA-256 fingerprint if FingerprintJS fails.
  */
+import FingerprintJS from "@fingerprintjs/fingerprintjs";
 
 function getCanvasFingerprint() {
   try {
@@ -47,9 +47,22 @@ async function sha256(message) {
 
 /**
  * Generate a stable device fingerprint.
- * @returns {Promise<string>} SHA-256 hex string
+ * Uses FingerprintJS visitorId, falls back to custom hash.
+ * @returns {Promise<string>}
  */
 export default async function getFingerprint() {
+  // Try FingerprintJS first
+  try {
+    const fp = await FingerprintJS.load();
+    const result = await fp.get();
+    if (result && result.visitorId) {
+      return result.visitorId;
+    }
+  } catch {
+    // Fall through to custom fingerprint
+  }
+
+  // Fallback: custom SHA-256 hash
   const signals = [
     navigator.userAgent || "",
     `${screen.width}x${screen.height}x${screen.colorDepth}`,

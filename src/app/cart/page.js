@@ -2,10 +2,13 @@
 import { useCart } from "@/context/CartContext";
 import { useState } from "react";
 import OrderModal from "@/components/OrderModal";
+import { checkBulkItems, getBulkWhatsAppURL, MAX_QTY_PER_ITEM } from "@/helpers/handleBulkRedirect";
 
 export default function CartPage() {
-  const { cart, total, removeFromCart, updateQuantity } = useCart();
+  const { cart, total, removeFromCart, updateQuantity, hasBulkItems } = useCart();
   const [showOrder, setShowOrder] = useState(false);
+
+  const { bulkItems } = checkBulkItems(cart);
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8">
@@ -109,12 +112,39 @@ export default function CartPage() {
                 </span>
               </div>
 
-              <button
-                onClick={() => setShowOrder(true)}
-                className="mt-4 w-full rounded-xl border-3 border-amber-900 bg-orange-500 py-3 text-sm font-black uppercase tracking-wider text-white hover:bg-orange-600 transition-colors"
-              >
-                ORDER NOW
-              </button>
+              {/* Bulk order warning */}
+              {hasBulkItems && (
+                <div className="mt-4 rounded-xl border-2 border-yellow-500 bg-yellow-50 p-4">
+                  <p className="text-sm font-black text-yellow-800 mb-2">
+                    ⚠️ BULK ORDER DETECTED
+                  </p>
+                  <p className="text-xs font-bold text-yellow-700 mb-3">
+                    Items with quantity &gt; {MAX_QTY_PER_ITEM} must be ordered via WhatsApp:
+                  </p>
+                  <ul className="text-xs font-bold text-yellow-700 mb-3 list-disc pl-4">
+                    {bulkItems.map((item, i) => (
+                      <li key={i}>{item.name} × {item.quantity}</li>
+                    ))}
+                  </ul>
+                  <a
+                    href={getBulkWhatsAppURL(bulkItems)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-block w-full text-center rounded-xl border-3 border-green-700 bg-green-500 py-3 text-sm font-black uppercase tracking-wider text-white hover:bg-green-600 transition-colors"
+                  >
+                    ORDER VIA WHATSAPP →
+                  </a>
+                </div>
+              )}
+
+              {!hasBulkItems && (
+                <button
+                  onClick={() => setShowOrder(true)}
+                  className="mt-4 w-full rounded-xl border-3 border-amber-900 bg-orange-500 py-3 text-sm font-black uppercase tracking-wider text-white hover:bg-orange-600 transition-colors"
+                >
+                  ORDER NOW
+                </button>
+              )}
             </>
           )}
         </div>
