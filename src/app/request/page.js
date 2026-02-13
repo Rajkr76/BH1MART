@@ -2,10 +2,23 @@
 import { useState, useEffect } from "react";
 import { validatePhone } from "@/utils/validatePhone";
 import { validateName } from "@/utils/validateName";
+import { validateInappropriateContent } from "@/config/inappropriateWords";
 import { checkClientBlock, recordFailedValidation, resetClientAttempts } from "@/utils/clientBlockCheck";
 import BlockedPopup from "@/components/BlockedPopup";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+
+const STATUS_COLORS = {
+  pending: "bg-yellow-400 text-yellow-900",
+  approved: "bg-green-400 text-green-900",
+  rejected: "bg-red-400 text-red-900",
+};
+
+const STATUS_MESSAGES = {
+  pending: "Your request is under review.",
+  approved: "Your request has been approved! The item will be added to the menu soon.",
+  rejected: "Your request was not approved. Please try requesting a different item.",
+};
 
 export default function RequestPage() {
   const [form, setForm] = useState({
@@ -21,6 +34,8 @@ export default function RequestPage() {
   const [isBlocked, setIsBlocked] = useState(false);
   const [blockedUntil, setBlockedUntil] = useState(null);
   const [showBlockedPopup, setShowBlockedPopup] = useState(false);
+  const [pastRequests, setPastRequests] = useState([]);
+  const [loadingRequests, setLoadingRequests] = useState(false);
 
   // Check block status on mount
   useEffect(() => {
@@ -30,7 +45,35 @@ export default function RequestPage() {
       setBlockedUntil(blockStatus.blockedUntil);
       setShowBlockedPopup(true);
     }
+    
+    // Load past requests
+    loadPastRequests();
   }, []);
+
+  const loadPastRequests = async () => {
+    try {
+      setLoadingRequests(true);
+      const stored = localStorage.getItem("b1mart_user_requests");
+      if (!stored) {
+        setLoadingRequests(false);
+        return;
+      }
+
+      const requestIds = JSON.parse(stored);
+      const requestPromises = requestIds.map((id) =>
+        fetch(`${API_URL}/api/food-request/${id}`)
+          .then((res) => (res.ok ? res.json() : null))
+          .catch(() => null)
+      );
+
+      const results = await Promise.all(requestPromises);
+      const validRequests = results.filter((req) => req !== null);
+      setPastRequests(validRequests);
+    } catch (err) {
+      console.error("Failed to load past requests:", err);
+    }
+    setLoadingRequests(false);
+  };
 
   const handleChange = (e) => {
     if (e.target.name === "phone") {
@@ -84,6 +127,38 @@ export default function RequestPage() {
       return;
     }
 
+    // Validate food item name for inappropriate content
+    const foodItemCheck = validateInappropriateContent(form.foodItem);
+    if (!foodItemCheck.valid) {
+      setFormError("Please use appropriate language for food item requests.");
+      // Record failed attempt and check if should block
+      recordFailedValidation();
+      const newBlockStatus = checkClientBlock();
+      if (newBlockStatus.isBlocked) {
+        setIsBlocked(true);
+        setBlockedUntil(newBlockStatus.blockedUntil);
+        setShowBlockedPopup(true);
+      }
+      return;
+    }
+
+    // Validate description for inappropriate content
+    if (form.description) {
+      const descCheck = validateInappropriateContent(form.description);
+      if (!descCheck.valid) {
+        setFormError("Please use appropriate language in the description.");
+        // Record failed attempt and check if should block
+        recordFailedValidation();
+        const newBlockStatus = checkClientBlock();
+        if (newBlockStatus.isBlocked) {
+          setIsBlocked(true);
+          setBlockedUntil(newBlockStatus.blockedUntil);
+          setShowBlockedPopup(true);
+        }
+        return;
+      }
+    }
+
     setSubmitting(true);
     try {
       const res = await fetch(`${API_URL}/api/food-request`, {
@@ -92,11 +167,30 @@ export default function RequestPage() {
         body: JSON.stringify({ ...form, phone: phoneResult.phone }),
       });
       if (res.ok) {
+        const data = await res.json();
         // Reset client-side block attempts on successful submission
         resetClientAttempts();
+        
+        // Save request ID to localStorage for tracking
+        if (data.requestId) {
+          try {
+            const stored = localStorage.getItem("b1mart_user_requests");
+            const requestIds = stored ? JSON.parse(stored) : [];
+            if (!requestIds.includes(data.requestId)) {
+              requestIds.unshift(data.requestId); // Add to beginning
+              localStorage.setItem("b1mart_user_requests", JSON.stringify(requestIds));
+            }
+          } catch (err) {
+            console.warn("Failed to save request ID:", err);
+          }
+        }
+        
         setShowSuccess(true);
         setForm({ name: "", phone: "", room: "", foodItem: "", description: "" });
         setTimeout(() => setShowSuccess(false), 4000);
+        
+        // Reload past requests to show the new one
+        loadPastRequests();
       }
     } catch (err) {
       console.error(err);
@@ -218,6 +312,63 @@ export default function RequestPage() {
           </form>
         </div>
       </div>
+
+      {/* Past Requests Section */}
+      {pastRequests.length > 0 && (
+        <div className="mt-6 rounded-2xl border-4 border-amber-900 bg-amber-50 shadow-[6px_6px_0px_#78350f] overflow-hidden">
+          <div className="flex items-center gap-2 bg-amber-900 px-4 py-2">
+            <span className="h-3 w-3 rounded-full bg-red-400" />
+            <span className="h-3 w-3 rounded-full bg-yellow-400" />
+            <span className="h-3 w-3 rounded-full bg-green-400" />
+            <span className="ml-3 text-xs font-bold uppercase tracking-widest text-amber-100">
+              YOUR PAST REQUESTS ({pastRequests.length})
+            </span>
+          </div>
+          <div className="p-6 space-y-4">
+            {loadingRequests ? (
+              <p className="text-center text-amber-700 font-bold">Loading your requests...</p>
+            ) : (
+              pastRequests.map((request) => (
+                <div
+                  key={request._id}
+                  className="rounded-xl border-2 border-amber-900/30 bg-amber-100 overflow-hidden"
+                >
+                  <div className="p-4 space-y-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-lg font-black text-amber-900">{request.foodItem}</span>
+                          <span
+                            className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${STATUS_COLORS[request.status]}`}
+                          >
+                            {request.status}
+                          </span>
+                        </div>
+                        <p className="text-xs font-bold text-amber-700">
+                          {new Date(request.createdAt).toLocaleString("en-IN", {
+                            dateStyle: "medium",
+                            timeStyle: "short",
+                          })}
+                        </p>
+                      </div>
+                    </div>
+
+                    {request.description && (
+                      <div className="rounded-lg border-2 border-amber-900/20 bg-amber-50 p-3">
+                        <p className="text-xs font-bold text-amber-800">{request.description}</p>
+                      </div>
+                    )}
+
+                    <div className="rounded-lg border-2 border-amber-900/30 bg-white/50 p-3">
+                      <p className="text-xs font-bold text-amber-700">{STATUS_MESSAGES[request.status]}</p>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Success Popup */}
       {showSuccess && (

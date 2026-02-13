@@ -16,7 +16,7 @@ const orderSchema = new mongoose.Schema({
   items: [orderItemSchema],
   total: { type: Number, required: true },
   fingerprint: { type: String, index: true, default: "" },
-  status: { type: String, enum: ["pending", "preparing", "delivered", "cancelled"], default: "pending" },
+  status: { type: String, enum: ["order placed", "on way", "delivered", "rejected"], default: "order placed" },
   createdAt: { type: Date, default: Date.now },
 });
 

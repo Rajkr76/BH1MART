@@ -5,12 +5,12 @@ import ProductManagement from "@/components/ProductManagement";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
-const STATUSES = ["pending", "preparing", "delivered", "cancelled"];
+const STATUSES = ["order placed", "on way", "delivered", "rejected"];
 const STATUS_COLORS = {
-  pending: "bg-yellow-400 text-yellow-900",
-  preparing: "bg-blue-400 text-blue-900",
+  "order placed": "bg-yellow-400 text-yellow-900",
+  "on way": "bg-blue-400 text-blue-900",
   delivered: "bg-green-400 text-green-900",
-  cancelled: "bg-red-400 text-red-900",
+  rejected: "bg-red-400 text-red-900",
 };
 
 // ─── Login Screen ───

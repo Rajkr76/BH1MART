@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import ProductCard from "@/components/ProductCard";
+import { io } from "socket.io-client";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -39,9 +40,32 @@ export default function HomePage() {
       }
     }
     fetchProducts();
-    // Poll for stock updates every 30 seconds
+    
+    // Set up Socket.io for real-time stock updates
+    const socket = io(API_URL);
+    
+    socket.on("connect", () => {
+      console.log("Connected to real-time stock updates");
+    });
+    
+    socket.on("stock-update", ({ productId, inStock }) => {
+      // Update the specific product in real-time
+      setProducts((prevProducts) =>
+        prevProducts.map((p) =>
+          p._id === productId || p.id === productId
+            ? { ...p, inStock }
+            : p
+        )
+      );
+    });
+    
+    // Poll for full sync every 30 seconds (backup)
     const interval = setInterval(fetchProducts, 30000);
-    return () => clearInterval(interval);
+    
+    return () => {
+      clearInterval(interval);
+      socket.disconnect();
+    };
   }, []);
 
   return (

@@ -23,6 +23,7 @@ const OrderLog = require("./models/OrderLog");
 const checkDeviceBlock = require("./middleware/checkDeviceBlock");
 const { validateOrder } = require("./utils/orderValidator");
 const { checkAbuseBlock, recordFailedAttempt, resetAttempts } = require("./middleware/abuseGuard");
+const { validateInappropriateContent } = require("./utils/validateInappropriateContent");
 const rateLimit = require("express-rate-limit");
 
 // Rate limiter: 5 requests per 10 minutes per IP for POST /api/order
@@ -361,6 +362,21 @@ app.post("/api/food-request", async (req, res) => {
     if (!name || !phone || !room || !foodItem) {
       return res.status(400).json({ error: "Name, phone, room, and food item are required" });
     }
+
+    // Validate food item for inappropriate content
+    const foodItemCheck = validateInappropriateContent(foodItem);
+    if (!foodItemCheck.valid) {
+      return res.status(400).json({ error: "Please use appropriate language for food item requests." });
+    }
+
+    // Validate description for inappropriate content
+    if (description) {
+      const descCheck = validateInappropriateContent(description);
+      if (!descCheck.valid) {
+        return res.status(400).json({ error: "Please use appropriate language in the description." });
+      }
+    }
+
     const request = await FoodRequest.create({ name, phone, room, foodItem, description });
     res.json({ success: true, requestId: request._id });
   } catch (err) {
@@ -374,6 +390,19 @@ app.get("/api/food-requests", requireAdmin, async (req, res) => {
   try {
     const requests = await FoodRequest.find().sort({ createdAt: -1 }).lean();
     res.json(requests);
+  } catch (err) {
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// Get a single food request by ID (public - for users to track their own requests)
+app.get("/api/food-request/:id", async (req, res) => {
+  try {
+    const request = await FoodRequest.findById(req.params.id).lean();
+    if (!request) {
+      return res.status(404).json({ error: "Request not found" });
+    }
+    res.json(request);
   } catch (err) {
     res.status(500).json({ error: "Server error" });
   }
@@ -429,7 +458,11 @@ app.patch("/api/products/:id", requireAdmin, async (req, res) => {
       req.body,
       { new: true, runValidators: true }
     ).lean();
-    if (product) res.json(product);
+    if (product) {
+      // Emit real-time stock update to all connected clients
+      io.emit("stock-update", { productId: product._id, inStock: product.inStock });
+      res.json(product);
+    }
     else res.status(404).json({ error: "Product not found" });
   } catch (err) {
     res.status(500).json({ error: "Server error" });

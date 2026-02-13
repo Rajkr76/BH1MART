@@ -174,6 +174,18 @@ export default function OrderModal({ onClose }) {
     setStep("confirmation");
     clearCart();
     
+    // Save chatId to localStorage for orders page tracking
+    try {
+      const stored = localStorage.getItem("b1mart_user_orders");
+      const chatIds = stored ? JSON.parse(stored) : [];
+      if (!chatIds.includes(chatId)) {
+        chatIds.unshift(chatId); // Add to beginning (most recent first)
+        localStorage.setItem("b1mart_user_orders", JSON.stringify(chatIds));
+      }
+    } catch (err) {
+      console.warn("Failed to save order to localStorage:", err);
+    }
+    
     // Send browser notification (for admin monitoring)
     notifyNewOrder(chatId, form.name, total);
   };
