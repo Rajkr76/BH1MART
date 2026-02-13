@@ -71,6 +71,7 @@ mongoose
   .connect(process.env.MONGODB_URI)
   .then(async () => {
     console.log("MongoDB connected");
+    
     // Seed admin user if not exists
     try {
       const existing = await Admin.findOne({ email: process.env.ADMIN_EMAIL });
@@ -81,12 +82,39 @@ mongoose
           name: ADMIN_NAME,
           chatId: ADMIN_CHAT_ID,
         });
-        console.log("Admin user seeded:", process.env.ADMIN_EMAIL);
+        console.log("✓ Admin user seeded:", process.env.ADMIN_EMAIL);
       } else {
-        console.log("Admin user exists:", existing.email);
+        console.log("✓ Admin user exists:", existing.email);
       }
     } catch (err) {
       console.error("Admin seed error:", err);
+    }
+
+    // Seed products if database is empty
+    try {
+      const productCount = await Product.countDocuments();
+      if (productCount === 0) {
+        const seedProducts = [
+          { name: "Maggi", category: "Noodles", price: 30, image: "/maggie.jpeg", priority: 1, inStock: true },
+          { name: "Kurkure", category: "Snacks", price: 35, image: "/kurkure.jpeg", priority: 2, inStock: true },
+          { name: "Maggi Cup Noodles", category: "Noodles", price: 85, image: "/Maggie cup noodles.jpeg", priority: 3, inStock: true },
+          { name: "Blue Lays", category: "Chips", price: 65, image: "/blue lays.jpeg", priority: 4, inStock: true },
+          { name: "Dark Fantasy", category: "Biscuits", price: 40, image: "/dark fantasy choco biscuits .jpeg", priority: 5, inStock: true },
+          { name: "Oreo Strawberry", category: "Biscuits", price: 45, image: "/Oreo(strawberry).jpeg", priority: 6, inStock: true },
+          { name: "Ramen Chicken", category: "Noodles", price: 70, image: "/Ramen Spicy Chicken noodles.jpeg", priority: 7, inStock: true },
+          { name: "Ramen Veg", category: "Noodles", price: 73, image: "/Ramen Spicy veg noodles.jpeg", priority: 8, inStock: true },
+          { name: "TooYumm Bhoot", category: "Chips", price: 67, image: "/too yum bhoot chips .jpeg", priority: 9, inStock: true },
+          { name: "TooYumm Onion", category: "Chips", price: 67, image: "/too yum onion chhips.jpeg", priority: 10, inStock: true },
+          { name: "Mad Angles", category: "Snacks", price: 65, image: "/Mad angles achari masti.jpeg", priority: 11, inStock: true },
+          { name: "Bikaji Bhel", category: "Snacks", price: 63, image: "/bikaji bhel.jpeg", priority: 12, inStock: true },
+        ];
+        await Product.insertMany(seedProducts);
+        console.log(`✓ Products seeded: ${seedProducts.length} products added to database`);
+      } else {
+        console.log(`✓ Products exist: ${productCount} products in database`);
+      }
+    } catch (err) {
+      console.error("Product seed error:", err);
     }
   })
   .catch((err) => console.error("MongoDB connection error:", err));
@@ -477,6 +505,46 @@ app.delete("/api/products/:id", requireAdmin, async (req, res) => {
     else res.status(404).json({ error: "Product not found" });
   } catch (err) {
     res.status(500).json({ error: "Server error" });
+  }
+});
+
+// Seed products (admin only) - one-time setup to populate initial products
+app.post("/api/products/seed", requireAdmin, async (req, res) => {
+  try {
+    const existingCount = await Product.countDocuments();
+    if (existingCount > 0) {
+      return res.status(400).json({ 
+        error: "Products already exist in database", 
+        count: existingCount,
+        message: "Delete existing products first or use manual add"
+      });
+    }
+
+    const seedProducts = [
+      { name: "Maggi", category: "Noodles", price: 30, image: "/maggie.jpeg", priority: 1 },
+      { name: "Kurkure", category: "Snacks", price: 35, image: "/kurkure.jpeg", priority: 2 },
+      { name: "Maggi Cup Noodles", category: "Noodles", price: 85, image: "/Maggie cup noodles.jpeg", priority: 3 },
+      { name: "Blue Lays", category: "Chips", price: 65, image: "/blue lays.jpeg", priority: 4 },
+      { name: "Dark Fantasy", category: "Biscuits", price: 40, image: "/dark fantasy choco biscuits .jpeg", priority: 5 },
+      { name: "Oreo Strawberry", category: "Biscuits", price: 45, image: "/Oreo(strawberry).jpeg", priority: 6 },
+      { name: "Ramen Chicken", category: "Noodles", price: 70, image: "/Ramen Spicy Chicken noodles.jpeg", priority: 7 },
+      { name: "Ramen Veg", category: "Noodles", price: 73, image: "/Ramen Spicy veg noodles.jpeg", priority: 8 },
+      { name: "TooYumm Bhoot", category: "Chips", price: 67, image: "/too yum bhoot chips .jpeg", priority: 9 },
+      { name: "TooYumm Onion", category: "Chips", price: 67, image: "/too yum onion chhips.jpeg", priority: 10 },
+      { name: "Mad Angles", category: "Snacks", price: 65, image: "/Mad angles achari masti.jpeg", priority: 11 },
+      { name: "Bikaji Bhel", category: "Snacks", price: 63, image: "/bikaji bhel.jpeg", priority: 12 },
+    ];
+
+    const createdProducts = await Product.insertMany(seedProducts);
+    res.json({ 
+      success: true, 
+      message: `Successfully seeded ${createdProducts.length} products`,
+      count: createdProducts.length,
+      products: createdProducts
+    });
+  } catch (err) {
+    console.error("Seed products error:", err);
+    res.status(500).json({ error: "Failed to seed products" });
   }
 });
 
