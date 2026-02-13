@@ -193,10 +193,10 @@ app.post("/api/order", orderRateLimiter, checkDeviceBlock, checkAbuseBlock, asyn
           { upsert: true, new: true }
         );
 
-        // Auto-block if 3+ hard invalid attempts
-        if (device.invalidAttempts >= 3 && !device.isBlocked) {
+        // Auto-block if 2+ hard invalid attempts (high severity like MNCs)
+        if (device.invalidAttempts >= 2 && !device.isBlocked) {
           device.isBlocked = true;
-          device.blockedReason = "Repeated fake orders";
+          device.blockedReason = "Multiple fake order attempts detected";
           await device.save();
         }
 
@@ -213,8 +213,14 @@ app.post("/api/order", orderRateLimiter, checkDeviceBlock, checkAbuseBlock, asyn
         reason: validation.reason,
       });
 
-      // Return user-friendly message for soft errors so they can fix and retry
-      return res.status(400).json({ error: validation.reason });
+      // Return generic user-friendly message (don't reveal validation details for security)
+      // Only show specific messages for soft errors (format issues)
+      if (validation.severity === "soft") {
+        return res.status(400).json({ error: validation.reason });
+      } else {
+        // Hard fraud detection - generic message
+        return res.status(400).json({ error: "Invalid order information. Please check your details and try again." });
+      }
     }
 
     // Valid order — create it

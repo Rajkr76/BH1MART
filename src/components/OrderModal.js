@@ -1,11 +1,13 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useCart } from "@/context/CartContext";
 import { notifyNewOrder } from "@/utils/notifications";
 import getFingerprint from "@/utils/getFingerprint";
 import { validatePhone, stripPhone } from "@/utils/validatePhone";
 import { validateName } from "@/utils/validateName";
 import { checkBulkItems, getBulkWhatsAppURL, MAX_QTY_PER_ITEM } from "@/helpers/handleBulkRedirect";
+import { checkClientBlock, recordFailedValidation, resetClientAttempts } from "@/utils/clientBlockCheck";
+import BlockedPopup from "@/components/BlockedPopup";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -24,6 +26,9 @@ export default function OrderModal({ onClose }) {
   const [orderData, setOrderData] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
+  const [isBlocked, setIsBlocked] = useState(false);
+  const [blockedUntil, setBlockedUntil] = useState(null);
+  const [showBlockedPopup, setShowBlockedPopup] = useState(false);
   const [form, setForm] = useState({
     name: "",
     phone: "",
@@ -31,6 +36,16 @@ export default function OrderModal({ onClose }) {
     phase: "Phase A",
     block: "Boys Block 1",
   });
+
+  // Check block status on mount
+  useEffect(() => {
+    const blockStatus = checkClientBlock();
+    if (blockStatus.isBlocked) {
+      setIsBlocked(true);
+      setBlockedUntil(blockStatus.blockedUntil);
+      setShowBlockedPopup(true);
+    }
+  }, []);
 
   const handleChange = (e) => {
     // Phone: strip non-digits, max 10
@@ -53,19 +68,46 @@ export default function OrderModal({ onClose }) {
     e.preventDefault();
     setSubmitError("");
 
+    // Check if blocked before submission
+    const blockStatus = checkClientBlock();
+    if (blockStatus.isBlocked) {
+      setIsBlocked(true);
+      setBlockedUntil(blockStatus.blockedUntil);
+      setShowBlockedPopup(true);
+      return;
+    }
+
     // --- Frontend validation ---
 
     // Validate name
     const nameResult = validateName(form.name);
     if (!nameResult.valid) {
-      setSubmitError(nameResult.reason);
+      // Generic user message
+      setSubmitError("Please enter a valid name.");
+      // Record failed attempt and check if should block
+      recordFailedValidation();
+      const newBlockStatus = checkClientBlock();
+      if (newBlockStatus.isBlocked) {
+        setIsBlocked(true);
+        setBlockedUntil(newBlockStatus.blockedUntil);
+        setShowBlockedPopup(true);
+      }
       return;
     }
 
     // Validate phone
     const phoneResult = validatePhone(form.phone);
     if (!phoneResult.valid) {
-      setSubmitError(phoneResult.reason);
+      // Generic user message - don't reveal specific validation logic
+      setSubmitError("Phone number is invalid.");
+      // Record failed attempt and check if should block
+      recordFailedValidation();
+      const newBlockStatus = checkClientBlock();
+      if (newBlockStatus.isBlocked) {
+        setIsBlocked(true);
+        setBlockedUntil(newBlockStatus.blockedUntil);
+        setShowBlockedPopup(true);
+      }
       return;
     }
 
@@ -125,6 +167,9 @@ export default function OrderModal({ onClose }) {
     }
     setSubmitting(false);
 
+    // Reset client-side block attempts on successful order
+    resetClientAttempts();
+
     setOrderData(order);
     setStep("confirmation");
     clearCart();
@@ -134,8 +179,18 @@ export default function OrderModal({ onClose }) {
   };
 
   return (
-    <div className="fixed inset-0 z-100 flex items-center justify-center bg-black/60 p-4 animate-fadeIn">
-      <div className="w-full max-w-lg rounded-2xl border-4 border-amber-900 bg-amber-50 shadow-[8px_8px_0px_#78350f] overflow-hidden max-h-[90vh] flex flex-col">
+    <>
+      {showBlockedPopup && (
+        <BlockedPopup 
+          blockedUntil={blockedUntil} 
+          onClose={() => {
+            setShowBlockedPopup(false);
+            onClose();
+          }} 
+        />
+      )}
+      <div className="fixed inset-0 z-100 flex items-center justify-center bg-black/60 p-4 animate-fadeIn">
+        <div className="w-full max-w-lg rounded-2xl border-4 border-amber-900 bg-amber-50 shadow-[8px_8px_0px_#78350f] overflow-hidden max-h-[90vh] flex flex-col">
         {/* Dots bar */}
         <div className="flex items-center gap-2 bg-amber-900 px-4 py-2">
           <span className="h-3 w-3 rounded-full bg-red-400" />
@@ -184,16 +239,16 @@ export default function OrderModal({ onClose }) {
 
               <div>
                 <label className="block text-xs font-black uppercase tracking-wide text-amber-900 mb-1">
-                  Room Number * <span className="text-[10px] font-bold text-amber-600 normal-case">(e.g. A-201)</span>
+                  Room Number * <span className="text-[10px] font-bold text-amber-600 normal-case">(e.g.B-123)</span>
                 </label>
                 <input
                   name="room"
                   value={form.room}
                   onChange={handleChange}
                   required
-                  placeholder="A-201"
+                  placeholder="B-123"
                   pattern="[A-Za-z]-\d{3}"
-                  title="Format: letter-dash-3 digits (e.g. A-201, B-105)"
+                  title="Format: letter-dash-3 digits (e.g. B-123, B-105)"
                   className="w-full rounded-lg border-2 border-amber-900 bg-amber-100 px-3 py-2 text-amber-900 font-bold uppercase focus:outline-none focus:ring-2 focus:ring-orange-500"
                 />
               </div>
@@ -355,6 +410,7 @@ export default function OrderModal({ onClose }) {
           )}
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 }

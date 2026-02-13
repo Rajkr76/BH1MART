@@ -1,7 +1,9 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { validatePhone } from "@/utils/validatePhone";
 import { validateName } from "@/utils/validateName";
+import { checkClientBlock, recordFailedValidation, resetClientAttempts } from "@/utils/clientBlockCheck";
+import BlockedPopup from "@/components/BlockedPopup";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
@@ -16,6 +18,19 @@ export default function RequestPage() {
   const [submitting, setSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [formError, setFormError] = useState("");
+  const [isBlocked, setIsBlocked] = useState(false);
+  const [blockedUntil, setBlockedUntil] = useState(null);
+  const [showBlockedPopup, setShowBlockedPopup] = useState(false);
+
+  // Check block status on mount
+  useEffect(() => {
+    const blockStatus = checkClientBlock();
+    if (blockStatus.isBlocked) {
+      setIsBlocked(true);
+      setBlockedUntil(blockStatus.blockedUntil);
+      setShowBlockedPopup(true);
+    }
+  }, []);
 
   const handleChange = (e) => {
     if (e.target.name === "phone") {
@@ -30,17 +45,42 @@ export default function RequestPage() {
     e.preventDefault();
     setFormError("");
 
+    // Check if blocked before submission
+    const blockStatus = checkClientBlock();
+    if (blockStatus.isBlocked) {
+      setIsBlocked(true);
+      setBlockedUntil(blockStatus.blockedUntil);
+      setShowBlockedPopup(true);
+      return;
+    }
+
     // Validate name
     const nameResult = validateName(form.name);
     if (!nameResult.valid) {
-      setFormError(nameResult.reason);
+      setFormError("Please enter a valid name.");
+      // Record failed attempt and check if should block
+      recordFailedValidation();
+      const newBlockStatus = checkClientBlock();
+      if (newBlockStatus.isBlocked) {
+        setIsBlocked(true);
+        setBlockedUntil(newBlockStatus.blockedUntil);
+        setShowBlockedPopup(true);
+      }
       return;
     }
 
     // Validate phone
     const phoneResult = validatePhone(form.phone);
     if (!phoneResult.valid) {
-      setFormError(phoneResult.reason);
+      setFormError("Phone number is invalid.");
+      // Record failed attempt and check if should block
+      recordFailedValidation();
+      const newBlockStatus = checkClientBlock();
+      if (newBlockStatus.isBlocked) {
+        setIsBlocked(true);
+        setBlockedUntil(newBlockStatus.blockedUntil);
+        setShowBlockedPopup(true);
+      }
       return;
     }
 
@@ -52,6 +92,8 @@ export default function RequestPage() {
         body: JSON.stringify({ ...form, phone: phoneResult.phone }),
       });
       if (res.ok) {
+        // Reset client-side block attempts on successful submission
+        resetClientAttempts();
         setShowSuccess(true);
         setForm({ name: "", phone: "", room: "", foodItem: "", description: "" });
         setTimeout(() => setShowSuccess(false), 4000);
@@ -63,7 +105,14 @@ export default function RequestPage() {
   };
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-8">
+    <>
+      {showBlockedPopup && (
+        <BlockedPopup 
+          blockedUntil={blockedUntil} 
+          onClose={() => setShowBlockedPopup(false)} 
+        />
+      )}
+      <div className="max-w-2xl mx-auto px-4 py-8">
       <div className="rounded-2xl border-4 border-amber-900 bg-amber-50 shadow-[6px_6px_0px_#78350f] overflow-hidden">
         {/* Header */}
         <div className="flex items-center gap-2 bg-amber-900 px-4 py-2">
@@ -201,5 +250,6 @@ export default function RequestPage() {
         </div>
       )}
     </div>
+    </>
   );
 }
