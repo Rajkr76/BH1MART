@@ -2,7 +2,6 @@
 import { createContext, useContext, useState } from "react";
 
 const CartContext = createContext();
-const MAX_QTY_PER_ITEM = 5;
 
 export function CartProvider({ children }) {
   const [cart, setCart] = useState([]);
@@ -42,11 +41,10 @@ export function CartProvider({ children }) {
 
   const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const itemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
-  const hasBulkItems = cart.some((item) => item.quantity > MAX_QTY_PER_ITEM);
 
   return (
     <CartContext.Provider
-      value={{ cart, addToCart, removeFromCart, updateQuantity, clearCart, total, itemCount, hasBulkItems, MAX_QTY_PER_ITEM }}
+      value={{ cart, addToCart, removeFromCart, updateQuantity, clearCart, total, itemCount }}
     >
       {children}
     </CartContext.Provider>
